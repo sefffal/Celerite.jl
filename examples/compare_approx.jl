@@ -43,8 +43,8 @@ println("Minimum eigenvalue: ",minimum(eigex))
 eigap,eigvec = eig(kap)
 println("Minimum eigenvalue: ",minimum(eigap))
 # Cholesky decomposition (square root) of kernels:
-sqrt_kex = chol(kex)
-sqrt_kap = chol(kap)
+sqrt_kex = cholesky(kex)
+sqrt_kap = cholesky(kap)
 
 # Random normal deviates:
 y=randn(ntime)

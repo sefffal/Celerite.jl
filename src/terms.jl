@@ -8,11 +8,11 @@ function get_terms(term::Term)
 end
 
 function get_real_coefficients(term::Term)
-    return (Array{Float64}(0), Array{Float64}(0))
+    return (Float64[], Float64[])
 end
 
 function get_complex_coefficients(term::Term)
-    return (Array{Float64}(0), Array{Float64}(0), Array{Float64}(0), Array{Float64}(0))
+    return (Float64[], Float64[], Float64[], Float64[])
 end
 
 function get_all_coefficients(term::Term)
@@ -24,7 +24,8 @@ end
 function get_value(term::Term, tau)
     coeffs = get_all_coefficients(term)
     t = abs.(tau)
-    k = zeros(tau)
+    k = similar(tau)
+    fill!(k, 0)
     for i in 1:length(coeffs[1])
         k .+= coeffs[1][i] .* exp.(-coeffs[2][i] .* t)
     end
@@ -60,14 +61,14 @@ function length(term::Term)
 end
 
 function get_parameter_vector(term::Term)
-    return Array{Float64}(0)
+    return Float64[]
 end
 
 function set_parameter_vector!(term::Term, vector::Array)
 end
 
 # A sum of terms
-type TermSum <: Term
+struct TermSum <: Term
     terms
 end
 
@@ -76,12 +77,12 @@ function get_terms(term::TermSum)
 end
 
 function get_all_coefficients(term_sum::TermSum)
-    a_real = Array{Float64}(0)
-    c_real = Array{Float64}(0)
-    a_complex = Array{Float64}(0)
-    b_complex = Array{Float64}(0)
-    c_complex = Array{Float64}(0)
-    d_complex = Array{Float64}(0)
+    a_real = Float64[]
+    c_real = Float64[]
+    a_complex = Float64[]
+    b_complex = Float64[]
+    c_complex = Float64[]
+    d_complex = Float64[]
     for term in term_sum.terms
         coeffs = get_all_coefficients(term)
 #        a_real = cat(1, a_real, coeffs[1])
@@ -122,7 +123,7 @@ function set_parameter_vector!(term_sum::TermSum, vector::Array)
 end
 
 # A product of two terms
-type TermProduct <: Term
+struct TermProduct <: Term
     term1
     term2
 end
@@ -201,7 +202,7 @@ function set_parameter_vector!(term_prod::TermProduct, vector::Array)
 end
 
 # A real term where b=0 and d=0
-type RealTerm <: Term
+struct RealTerm <: Term
     log_a::Float64
     log_c::Float64
 end
@@ -223,8 +224,8 @@ function set_parameter_vector!(term::RealTerm, vector::Array)
     term.log_c = vector[2]
 end
 
-# General celerite term
-type ComplexTerm <: Term
+# General Celerite term
+struct ComplexTerm <: Term
     log_a::Float64
     log_b::Float64
     log_c::Float64
@@ -251,7 +252,7 @@ function set_parameter_vector!(term::ComplexTerm, vector::Array)
 end
 
 # A SHO term
-type SHOTerm <: Term
+struct SHOTerm <: Term
     log_S0::Float64
     log_Q::Float64
     log_omega0::Float64
@@ -260,7 +261,7 @@ end
 function get_real_coefficients(term::SHOTerm)
     Q = exp(term.log_Q)
     if Q >= 0.5
-        return Array{Float64}(0), Array{Float64}(0)
+        return Float64[], Float64[]
     end
     S0 = exp(term.log_S0)
     w0 = exp(term.log_omega0)
@@ -274,7 +275,7 @@ end
 function get_complex_coefficients(term::SHOTerm)
     Q = exp(term.log_Q)
     if Q < 0.5
-        return Array{Float64}(0), Array{Float64}(0), Array{Float64}(0), Array{Float64}(0)
+        return Float64[], Float64[], Float64[], Float64[]
     end
     S0 = exp(term.log_S0)
     w0 = exp(term.log_omega0)

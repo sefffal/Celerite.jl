@@ -19,7 +19,7 @@ using FITSIO
 #import matplotlib.pyplot as plt
 #from scipy.optimize import minimize
 
-#using celerite
+#using Celerite
 include("../src/compile_matrix_symm.jl")
 include("../src/compute_likelihood.jl")
 using PyPlot
@@ -194,7 +194,7 @@ alpha_real = zeros(p)
 alpha_imag = zeros(p)
 beta_real = zeros(p)
 beta_imag = zeros(p)
-# Convert from Rotation kernel parameters to celerite kernel parameters:
+# Convert from Rotation kernel parameters to Celerite kernel parameters:
 f = exp(gpp[5])
 # Define alpha_real, alpha_imag, beta_real, beta_imag
 alpha_real[1] = exp(gpp[2])*(1.+f)/(2.+f)
@@ -249,7 +249,7 @@ toq()
 #    ]
 #)
 
-#gp = celerite.GP(kernel, mean=mean, fit_mean=True,
+#gp = Celerite.GP(kernel, mean=mean, fit_mean=True,
 #                 log_white_noise=2*np.log(0.5*yerr.min()),
 #                 fit_white_noise=True)
 #gp.compute(t, yerr)

@@ -33,7 +33,7 @@ for i=1:nt
     mat[i,j]=exp(-real(beta)*dt)*(real(alpha)*cos(imag(beta)*dt)+imag(alpha)*sin(imag(beta)*dt))
   end
 end
-chmat=chol(mat)
+chmat=cholesky(mat)
 sim=*(transpose(chmat),ndev)
 # Now compute cholesky decomposition analytically:
 chol_anal = zeros(Complex{Float64},nt,nt)

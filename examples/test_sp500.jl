@@ -2,7 +2,7 @@ using Optim
 using PyPlot
 using StatsBase
 using ForwardDiff
-using celerite
+using Celerite
 include("regress.jl")
 
 function test_sp500()

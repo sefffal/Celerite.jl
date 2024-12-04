@@ -2,7 +2,7 @@
 
 import Optim
 import PyPlot
-import celerite
+import Celerite
 
 
 # Try out the quasi-periodic inference with LAPACK:
@@ -32,31 +32,31 @@ for ij = 1:njj
   Q = 1.0 / sqrt(2.0)
   w0 = 3.0
   S0 = var(y) / (w0 * Q)
-  kernel = celerite.SHOTerm(log(S0), log(Q), log(w0))
+  kernel = Celerite.SHOTerm(log(S0), log(Q), log(w0))
   if nj[ij] > 1
     for j=1:nj[ij]
 # NJ periodic component
       logQ = rand()
       logw0 = rand()
       logS0 = rand()
-      kernel = kernel + celerite.SHOTerm(logS0, logQ, logw0)
+      kernel = kernel + Celerite.SHOTerm(logS0, logQ, logw0)
     end
   end
 # Initialize values for computation:
-#celerite.TermSum((celerite.SHOTerm(-0.7432145976901582,-0.34657359027997275,1.0986122886681096),celerite.SHOTerm(-1.089788187970131,0.0,1.0986122886681096)))
+#Celerite.TermSum((Celerite.SHOTerm(-0.7432145976901582,-0.34657359027997275,1.0986122886681096),Celerite.SHOTerm(-1.089788187970131,0.0,1.0986122886681096)))
 
 # First, run without lapack:
   tic()
-  gp = celerite.Celerite(kernel, use_lapack = false)
-  celerite.compute!(gp, t, yerr)
-  log_like_vanilla = celerite.log_likelihood(gp,y)
+  gp = Celerite.CeleriteGP(kernel, use_lapack = false)
+  Celerite.compute!(gp, t, yerr)
+  log_like_vanilla = Celerite.log_likelihood(gp,y)
   timing_vanilla[ij]=toc()
 # Now, run with lapack:
   tic()
-  gp = celerite.Celerite(kernel, use_lapack = true)
-  celerite.compute!(gp, t, yerr)
-  celerite.log_likelihood(gp,y)
-  log_like_lapack = celerite.log_likelihood(gp,y)
+  gp = Celerite.CeleriteGP(kernel, use_lapack = true)
+  Celerite.compute!(gp, t, yerr)
+  Celerite.log_likelihood(gp,y)
+  log_like_lapack = Celerite.log_likelihood(gp,y)
   timing_lapack[ij] = toc()
   println("Without lapack: ",log_like_vanilla," with lapack: ",log_like_lapack)
 end
@@ -66,23 +66,23 @@ PyPlot.loglog(nj,timing_lapack,linestyle="dashed")
 read(STDIN,Char)
 
 
-vector = celerite.get_parameter_vector(gp.kernel)
+vector = Celerite.get_parameter_vector(gp.kernel)
 mask = ones(Bool, length(vector))
 mask[2] = false  # Don't fit for the first Q
 function nll(params)
     vector[mask] = params
-    celerite.set_parameter_vector!(gp.kernel, vector)
-    celerite.compute!(gp, t, yerr)
-    return -celerite.log_likelihood(gp, y)
+    Celerite.set_parameter_vector!(gp.kernel, vector)
+    Celerite.compute!(gp, t, yerr)
+    return -Celerite.log_likelihood(gp, y)
 end
 
 result = Optim.optimize(nll, vector[mask], Optim.LBFGS())
 result
 
 vector[mask] = Optim.minimizer(result)
-celerite.set_parameter_vector!(gp.kernel, vector)
+Celerite.set_parameter_vector!(gp.kernel, vector)
 
-mu, variance = celerite.predict(gp, y, true_t, return_var=true)
+mu, variance = Celerite.predict(gp, y, true_t, return_var=true)
 sigma = sqrt(variance)
 
 PyPlot.plot(true_t, true_y, "k", lw=1.5, alpha=0.3)
@@ -98,10 +98,10 @@ read(STDIN,Char)
 PyPlot.clf()
 
 omega = exp(linspace(log(0.1), log(20), 5000))
-psd = celerite.get_psd(gp.kernel, omega)
+psd = Celerite.get_psd(gp.kernel, omega)
 
 for term in gp.kernel.terms
-    PyPlot.plot(omega, celerite.get_psd(term, omega), "--")
+    PyPlot.plot(omega, Celerite.get_psd(term, omega), "--")
 end
 PyPlot.plot(omega, psd)
 

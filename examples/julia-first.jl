@@ -1,7 +1,7 @@
 using Optim
 using PyPlot
-#import celerite
-include("../src/celerite.jl")
+#import Celerite
+include("../src/Celerite.jl")
 
 srand(42)
 
@@ -24,25 +24,25 @@ PyPlot.ylim(-2.5, 2.5);
 Q = 1.0 / sqrt(2.0)
 w0 = 3.0
 S0 = var(y) / (w0 * Q)
-kernel = celerite.SHOTerm(log(S0), log(Q), log(w0))
+kernel = Celerite.SHOTerm(log(S0), log(Q), log(w0))
 
 # A periodic component
 Q = 1.0
 w0 = 3.0
 S0 = var(y) / (w0 * Q)
-kernel = kernel + celerite.SHOTerm(log(S0), log(Q), log(w0))
+kernel = kernel + Celerite.SHOTerm(log(S0), log(Q), log(w0))
 
-celerite.TermSum((celerite.SHOTerm(-0.7432145976901582,-0.34657359027997275,1.0986122886681096),celerite.SHOTerm(-1.089788187970131,0.0,1.0986122886681096)))
+Celerite.TermSum((Celerite.SHOTerm(-0.7432145976901582,-0.34657359027997275,1.0986122886681096),Celerite.SHOTerm(-1.089788187970131,0.0,1.0986122886681096)))
 
-gp = celerite.Celerite(kernel)
-celerite.compute!(gp, t, yerr)
-celerite.log_likelihood(gp, y)
+gp = Celerite.CeleriteGP(kernel)
+Celerite.compute!(gp, t, yerr)
+Celerite.log_likelihood(gp, y)
 
-#mu, variance = celerite.predict_full_ldlt(gp, y, true_t, return_var=true)
-#mu, variance = celerite.predict_full(gp, y, true_t, return_var=true)
-mu, variance = celerite.predict(gp, y, true_t, return_var=true)
-#mu  = celerite.predict_full(gp, y, true_t, return_cov=false, return_var=false)
-#mu  = celerite.predict!(gp, gp.x, y, true_t)
+#mu, variance = Celerite.predict_full_ldlt(gp, y, true_t, return_var=true)
+#mu, variance = Celerite.predict_full(gp, y, true_t, return_var=true)
+mu, variance = Celerite.predict(gp, y, true_t, return_var=true)
+#mu  = Celerite.predict_full(gp, y, true_t, return_cov=false, return_var=false)
+#mu  = Celerite.predict!(gp, gp.x, y, true_t)
 sigma = sqrt.(variance)
 
 PyPlot.plot(true_t, true_y, "k", lw=1.5, alpha=0.3,label="Simulated data")
@@ -56,14 +56,14 @@ PyPlot.ylim(-2.5, 2.5);
 read(STDIN,Char)
 
 PyPlot.clf()
-vector = celerite.get_parameter_vector(gp.kernel)
+vector = Celerite.get_parameter_vector(gp.kernel)
 mask = ones(Bool, length(vector))
 mask[2] = false  # Don't fit for the first Q
 function nll(params)
     vector[mask] = params
-    celerite.set_parameter_vector!(gp.kernel, vector)
-    celerite.compute!(gp, t, yerr)
-    return -celerite.log_likelihood(gp, y)
+    Celerite.set_parameter_vector!(gp.kernel, vector)
+    Celerite.compute!(gp, t, yerr)
+    return -Celerite.log_likelihood(gp, y)
 end;
 
 result = Optim.optimize(nll, vector[mask], Optim.LBFGS())
@@ -72,13 +72,13 @@ result
 vector[mask] = Optim.minimizer(result)
 vector
 
-celerite.set_parameter_vector!(gp.kernel, vector)
+Celerite.set_parameter_vector!(gp.kernel, vector)
 
-#mu, variance = celerite.predict(gp, y, true_t, return_var=true)
-#mu, variance = celerite.predict_full_ldlt(gp, y, true_t, return_var=true)
-#mu = celerite.predict(gp, y, true_t, return_cov = false, return_var=false)
-#mu = celerite.predict!(gp, gp.x, y, true_t)
-mu, variance = celerite.predict(gp, y, true_t, return_var=true)
+#mu, variance = Celerite.predict(gp, y, true_t, return_var=true)
+#mu, variance = Celerite.predict_full_ldlt(gp, y, true_t, return_var=true)
+#mu = Celerite.predict(gp, y, true_t, return_cov = false, return_var=false)
+#mu = Celerite.predict!(gp, gp.x, y, true_t)
+mu, variance = Celerite.predict(gp, y, true_t, return_var=true)
 sigma = sqrt.(variance)
 
 PyPlot.plot(true_t, true_y, "k", lw=1.5, alpha=0.3)
@@ -95,10 +95,10 @@ read(STDIN,Char)
 PyPlot.clf()
 
 omega = exp.(linspace(log(0.1), log(20), 5000))
-psd = celerite.get_psd(gp.kernel, omega)
+psd = Celerite.get_psd(gp.kernel, omega)
 
 for term in gp.kernel.terms
-    PyPlot.plot(omega, celerite.get_psd(term, omega), "--", color="orange")
+    PyPlot.plot(omega, Celerite.get_psd(term, omega), "--", color="orange")
 end
 PyPlot.plot(omega, psd, color="orange")
 

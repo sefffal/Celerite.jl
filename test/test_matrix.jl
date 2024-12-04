@@ -1,5 +1,5 @@
 using Base.Test
-using celerite
+using Celerite
 
 omega = 2pi/12.203317
 alpha_r = [1.0428542, 0.38361831, 0.30345984/2, 0.30345984/2]
@@ -27,7 +27,7 @@ end
 # Compute a realization of correlated noise with this covariance matrix.
 y=randn(nt)
 # First, do Cholesky decomposition:
-sqrta = chol(A)
+sqrta = cholesky(A)
 # Now make a realization of the correlated noise:
 corrnoise=*(transpose(sqrta),y);
 

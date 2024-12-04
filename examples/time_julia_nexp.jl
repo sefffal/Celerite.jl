@@ -1,5 +1,5 @@
 using PyPlot
-using celerite
+using Celerite
 
 
 # Compute time for Generalized Rybicki-Press with J Lorentzian components

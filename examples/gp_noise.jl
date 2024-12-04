@@ -17,7 +17,7 @@ for i=1:nt
     mat[i,j]=exp(-real(beta)*dt)*(real(alpha)*cos(imag(beta)*dt)+imag(alpha)*sin(imag(beta)*dt))
   end
 end
-chmat=transpose(chol(mat))
+chmat=transpose(cholesky(mat))
 
 nfft = nt
 ndev = randn(nt)
