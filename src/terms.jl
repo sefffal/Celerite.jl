@@ -1,7 +1,8 @@
 import Base.+, Base.*, Base.length, Base.product
 
 # Abstract base class and definitions
-abstract type Term end
+abstract type Term{T} end
+_numtype(::Term) = Float64
 
 function get_terms(term::Term)
     return tuple(term)
@@ -34,12 +35,13 @@ function get_value(term::Term, tau)
     end
     return k
 end
+get_psd2(term, omega) =get_psd(term, omega)
 
-function get_psd(term::Term, omega)
+function get_psd(term, omega)
     coeffs = get_all_coefficients(term)
     w2 = omega.^2
     w4 = w2.^2
-    p = zeros(w2)
+    p = zeros(eltype(w2), size(w2))
     for i in 1:length(coeffs[1])
         a = coeffs[1][i]
         c = coeffs[2][i]
@@ -51,7 +53,7 @@ function get_psd(term::Term, omega)
         c = coeffs[5][i]
         d = coeffs[6][i]
         w02 = c*c+d*d
-        p = p + ((a*c+b*d)*w02+(a*c-b*d).*w2) ./ (w4 + 2.0*(c*c-d*d).*w2+w02*w02)
+        @. p = p + ((a*c+b*d)*w02+(a*c-b*d).*w2) ./ (w4 + 2.0*(c*c-d*d).*w2+w02*w02)
     end
     return sqrt(2.0 / pi) .* p
 end
@@ -68,8 +70,8 @@ function set_parameter_vector!(term::Term, vector::Array)
 end
 
 # A sum of terms
-struct TermSum <: Term
-    terms
+struct TermSum{T, N, A<:NTuple{N,Term{T}}} <: Term{T}
+    terms::A
 end
 
 function get_terms(term::TermSum)
@@ -110,7 +112,7 @@ function length(term_sum::TermSum)
 end
 
 function get_parameter_vector(term_sum::TermSum)
-    return cat(1, map(get_parameter_vector, term_sum.terms)...)
+    return vcat(map(get_parameter_vector, term_sum.terms)...)
 end
 
 function set_parameter_vector!(term_sum::TermSum, vector::Array)
@@ -123,9 +125,9 @@ function set_parameter_vector!(term_sum::TermSum, vector::Array)
 end
 
 # A product of two terms
-struct TermProduct <: Term
-    term1
-    term2
+struct TermProduct{T,A<:Term{T},B<:Term{T}} <: Term{T}
+    term1::A
+    term2::B
 end
 
 function chain(a...)
@@ -140,8 +142,8 @@ function get_all_coefficients(term_sum::TermProduct)
 
     # First compute real terms
     nr = nr1 * nr2
-    ar = Array{Float64}(nr)
-    cr = Array{Float64}(nr)
+    ar = Array{Float64}(undef, nr)
+    cr = Array{Float64}(undef, nr)
     gen = product(zip(c1[1], c1[2]), zip(c2[1], c2[2]))
     for (i, ((aj, cj), (ak, ck))) in enumerate(gen)
         ar[i] = aj * ak
@@ -150,10 +152,10 @@ function get_all_coefficients(term_sum::TermProduct)
 
     # Then the complex terms
     nc = nr1 * nc2 + nc1 * nr2 + 2 * nc1 * nc2
-    ac = Array{Float64}(nc)
-    bc = Array{Float64}(nc)
-    cc = Array{Float64}(nc)
-    dc = Array{Float64}(nc)
+    ac = Array{Float64}(undef, nc)
+    bc = Array{Float64}(undef, nc)
+    cc = Array{Float64}(undef, nc)
+    dc = Array{Float64}(undef, nc)
 
     # real * complex
     gen = product(zip(c1[1], c1[2]), zip(c2[3:end]...))
@@ -202,9 +204,9 @@ function set_parameter_vector!(term_prod::TermProduct, vector::Array)
 end
 
 # A real term where b=0 and d=0
-struct RealTerm <: Term
-    log_a::Float64
-    log_c::Float64
+struct RealTerm{T} <: Term{T}
+    log_a::T
+    log_c::T
 end
 
 function get_real_coefficients(term::RealTerm)
@@ -225,11 +227,11 @@ function set_parameter_vector!(term::RealTerm, vector::Array)
 end
 
 # General Celerite term
-struct ComplexTerm <: Term
-    log_a::Float64
-    log_b::Float64
-    log_c::Float64
-    log_d::Float64
+struct ComplexTerm{T} <: Term{T}
+    log_a::T
+    log_b::T
+    log_c::T
+    log_d::T
 end
 
 function get_complex_coefficients(term::ComplexTerm)
@@ -252,10 +254,10 @@ function set_parameter_vector!(term::ComplexTerm, vector::Array)
 end
 
 # A SHO term
-struct SHOTerm <: Term
-    log_S0::Float64
-    log_Q::Float64
-    log_omega0::Float64
+struct SHOTerm{T} <: Term{T}
+    log_S0::T
+    log_Q::T
+    log_omega0::T
 end
 
 function get_real_coefficients(term::SHOTerm)

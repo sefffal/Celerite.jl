@@ -1,18 +1,20 @@
 # Translating DFM's python version:
 include("terms.jl")
 
-mutable struct CeleriteGP
+mutable struct CeleriteGP{T}
   kernel::Term
   computed::Bool
-  D::Vector{Float64}
-  W::Array{Float64}
-  up::Array{Float64}
-  phi::Array{Float64}
-  x::Vector{Float64}
-  logdet::Float64
+  D::Vector{T}
+  W::Array{T}
+  up::Array{T}
+  phi::Array{T}
+  x::Vector{T}
+  logdet::T
   n::Int
   J::Int
-  CeleriteGP(kernel) = new(kernel, false, zeros(Float64, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0), 0.0, 0, 0)
+  function CeleriteGP(kernel::Term{T}) where T
+    new{T}(kernel, false, zeros(Float64, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0), 0.0, 0, 0)
+  end
 end
 
 function cholesky_ldlt!(a_real::Vector{Float64}, c_real::Vector{Float64},
@@ -164,11 +166,38 @@ function cholesky_ldlt!(a_real::Vector{Float64}, c_real::Vector{Float64},
 end
 
 
-function cholesky!(a_real::Vector{Float64}, c_real::Vector{Float64},
-  a_comp::Vector{Float64}, b_comp::Vector{Float64},
-  c_comp::Vector{Float64}, d_comp::Vector{Float64},
-  t::Vector{Float64}, diag::Vector{Float64}, X::Array{Float64,2},
-  phi::Array{Float64,2}, u::Array{Float64,2}, D::Vector{Float64})
+function cholesky!(a_real::Vector, c_real::Vector,
+  a_comp::Vector, b_comp::Vector,
+  c_comp::Vector, d_comp::Vector,
+  t::Vector, diag::Vector, X::Matrix,
+  phi::Matrix, u::Matrix, D::Vector)
+
+  T = promote_type(
+    eltype(a_real),
+    eltype(c_real),
+    eltype(a_comp),
+    eltype(b_comp),
+    eltype(c_comp),
+    eltype(d_comp),
+    eltype(t),
+    eltype(diag),
+    eltype(X),
+    eltype(phi),
+    eltype(u),
+    eltype(D),
+  )
+  a_real = convert(Vector{T}, a_real)
+  c_real = convert(Vector{T}, c_real)
+  a_comp = convert(Vector{T}, a_comp)
+  b_comp = convert(Vector{T}, b_comp)
+  c_comp = convert(Vector{T}, c_comp)
+  d_comp = convert(Vector{T}, d_comp)
+  t = convert(Vector{T}, t)
+  diag = convert(Vector{T}, diag)
+  X = convert(Matrix{T}, X)
+  phi = convert(Matrix{T}, phi)
+  u = convert(Matrix{T}, u)
+  D = convert(Vector{T}, D)
   #
   # Fast Cholesky solver based on low-rank decomposition due to Sivaram, plus
   # real implementation of Celerite term.
@@ -188,6 +217,7 @@ function cholesky!(a_real::Vector{Float64}, c_real::Vector{Float64},
   X = _reshape!(X, J, N)
   D = _reshape!(D, N)
 
+
   # Sum over the diagonal kernel amplitudes:    
   a_sum = sum(a_real) + sum(a_comp)
   # Compute the first element:
@@ -199,8 +229,8 @@ function cholesky!(a_real::Vector{Float64}, c_real::Vector{Float64},
   end
   # We are going to compute cosine & sine recursively - allocate arrays for each complex
   # component:
-  cd::Vector{Float64} = zeros(J_comp)
-  sd::Vector{Float64} = zeros(J_comp)
+  cd::Vector{T} = zeros(J_comp)
+  sd::Vector{T} = zeros(J_comp)
   # Initialize the computation of X:
   for j in 1:J_comp
     cd[j] = cos(d_comp[j] * t[1])
@@ -211,7 +241,7 @@ function cholesky!(a_real::Vector{Float64}, c_real::Vector{Float64},
     X[J_real+2*j, 1] = sd[j] * value
   end
   # Allocate array for recursive computation of low-rank matrices:   
-  S::Array{Float64,2} = zeros(J, J)
+  S::Array{T,2} = zeros(J, J)
   for j in 1:J
     for k in 1:j
       S[k, j] = X[k, 1] * X[j, 1]
@@ -833,12 +863,12 @@ function predict(gp::CeleriteGP, y, t; return_cov=true, return_var=false)
 
   KxsT = transpose(Kxs)
   if return_var
-    v = zeros(t)
+    v = zeros(eltype(t), size(t))
     for i = 1:length(t)
       #        v = -sum(KxsT .* apply_inverse(gp, KxsT), 1)
       v[i] = -sum(KxsT[:, i] .* apply_inverse(gp, KxsT[:, i]))
     end
-    v = v + get_value(gp.kernel, [0.0])[1]
+    v = v .+ get_value(gp.kernel, [0.0])[1]
     #        return mu, v[1, :]
     return mu, v
   end
@@ -870,10 +900,10 @@ function predict_full(gp::CeleriteGP, y, t; return_cov=true, return_var=false)
   return mu, cov
 end
 
-function _reshape!(A::Array{Float64}, dims...)
+function _reshape!(A::Array, dims...)
   # Allocates arrays if size is not correct
   if size(A) != dims
-    A = Array{Float64}(undef, dims)
+    A = Array{eltype(A)}(undef, dims)
   end
   return A
 end
