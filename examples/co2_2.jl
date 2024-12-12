@@ -9,7 +9,7 @@ using Celerite: SHOTerm, CeleriteGP, compute!, log_likelihood, get_psd
 """
 Compute log-likelihood for quasi-periodic GP model.
 """
-function neg_log_like(param, t, y)
+function neg_log_like(param, t, y, yerr)
     # Extract parameters
     mean_flux = param[1]
     # GP hyperparameters for quasi-periodic kernel
@@ -25,8 +25,7 @@ function neg_log_like(param, t, y)
     gp = CeleriteGP(kernel)
 
     # Compute GP model
-    compute!(gp, t, zeros(length(t)))  # No measurement uncertainties for now
-    
+    compute!(gp, t, yerr) 
     # Compute log likelihood
     nll = -log_likelihood(gp, y .- mean_flux)
     
@@ -69,8 +68,10 @@ function analyze_co2_qp()
     lower = [-5.0, -10.0, -1.0, 0.0, -5.0]
     upper = [5.0, 10.0, 2.0, 5.0, 0.0]
 
+    co2_sub_err = 0.1 .+ zeros(length(co2_sub))# assume uniform measurement uncertainties for now
+
     # Optimize GP parameters
-    obj = x -> neg_log_like(x, time, co2_sub)
+    obj = x -> neg_log_like(x, time, co2_sub, co2_sub_err)
     # res = optimize(obj, lower, upper, param_init, Fminbox(LBFGS()), Optim.Options(show_trace=true))#, autodiff = :forward)
     # res = optimize(obj, lower, upper, param_init, Fminbox(LBFGS()), Optim.Options(show_trace=true))#, autodiff = :forward)
     res = optimize(obj, param_init, (NelderMead()), Optim.Options(show_trace=true))
@@ -82,14 +83,15 @@ function analyze_co2_qp()
     gp_opt = CeleriteGP(kernel_opt)
 
     # Create time grid for smooth predictions
-    time_pred = range(minimum(time), maximum(time), length=10length(time))
+    time_pred = range(minimum(time), maximum(time) + 5, length=10length(time))
     
     # Compute GP on data points
-    @time compute!(gp_opt, time, zeros(length(time)))
+    @time "compute" compute!(gp_opt, time, zeros(length(time)))
     
     # Compute GP prediction on both original and interpolated points
-    pred_mean, pred_var = Celerite.predict(gp_opt, co2_sub, collect(time_pred); return_var=true)
-    pred_var .= 0
+    @time "predict" pred_mean, pred_var = Celerite.predict(gp_opt, co2_sub, collect(time_pred); return_var=true)
+    # pred_var .= 0
+    pred_var = max.(0, pred_var)
     pred_std = sqrt.(pred_var)
     
     # Plot results
@@ -111,7 +113,7 @@ function analyze_co2_qp()
     
     ax2 = Axis(fig[2, 1], xlabel="Frequency", ylabel="Power", yscale=log10)
     lines!(ax2, omega, psd)
-    
+
     display(fig)
     
     return time, time_pred, co2_sub, pred_mean, pred_std, param_opt
