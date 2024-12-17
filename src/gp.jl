@@ -1,19 +1,20 @@
 # Translating DFM's python version:
 include("terms.jl")
 
-mutable struct CeleriteGP{T}
-  kernel::Term
+mutable struct CeleriteGP{T,TTerm}
+  kernel::TTerm
   computed::Bool
   D::Vector{T}
-  W::Array{T}
-  up::Array{T}
-  phi::Array{T}
+  W::Matrix{T}
+  up::Matrix{T}
+  phi::Matrix{T}
   x::Vector{T}
+  var::Vector{T}
   logdet::T
   n::Int
   J::Int
   function CeleriteGP(kernel::Term{T}) where T
-    new{T}(kernel, false, zeros(Float64, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0), 0.0, 0, 0)
+    new{T,typeof(kernel)}(kernel, false, zeros(Float64, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0, 0), zeros(Float64, 0), zeros(Float64, 0), 0.0, 0, 0)
   end
 end
 
@@ -361,10 +362,14 @@ function compute!(gp::CeleriteGP, x, yerr=0.0)
   # Call the choleksy function to decompose & update
   # the components of gp with X,D,V,U,etc. 
   coeffs = get_all_coefficients(gp.kernel)
-  var = yerr .^ 2 + zeros(Float64, length(x))
+  if length(gp.var) == 0
+    gp.var = yerr .^ 2 + zeros(Float64, length(x))
+  else
+    gp.var .= yerr .^ 2 + zeros(Float64, length(x))
+  end
   gp.n = length(x)
   #  @time gp.D,gp.W,gp.up,gp.phi = cholesky!(coeffs..., x, var, gp.W, gp.phi, gp.up, gp.D)
-  gp.D, gp.W, gp.up, gp.phi = cholesky!(coeffs..., x, var, gp.W, gp.phi, gp.up, gp.D)
+  gp.D, gp.W, gp.up, gp.phi = cholesky!(coeffs..., x, gp.var, gp.W, gp.phi, gp.up, gp.D)
   gp.J = size(gp.W)[1]
   # Compute the log determinant (square the determinant of the Cholesky factor):
   gp.logdet = 2 * sum(log.(gp.D))
@@ -445,7 +450,7 @@ function apply_inverse(gp::CeleriteGP, y)
   z[1] = y[1] / gp.D[1]
   f = zeros(Float64, gp.J)
   for n = 2:N
-    f .= gp.phi[:, n-1] .* (f .+ gp.W[:, n-1] .* z[n-1])
+    f .= @views gp.phi[:, n-1] .* (f .+ gp.W[:, n-1] .* z[n-1])
     z[n] = (y[n] - dot(gp.up[:, n], f)) / gp.D[n]
   end
   # The following solves L^T.z = y for z:
@@ -454,8 +459,8 @@ function apply_inverse(gp::CeleriteGP, y)
   z[N] = y[N] / gp.D[N]
   f = zeros(Float64, gp.J)
   for n = N-1:-1:1
-    f = gp.phi[:, n] .* (f + gp.up[:, n+1] .* z[n+1])
-    z[n] = (y[n] - dot(gp.W[:, n], f)) / gp.D[n]
+    f .= @views gp.phi[:, n] .* (@views(f .+ gp.up[:, n+1] .* z[n+1]))
+    z[n] = @views (y[n] - dot(gp.W[:, n], f)) / gp.D[n]
   end
   # The result is the solution of L.L^T.z = y for z,
   # or z = {L.L^T}^{-1}.y = L^{T,-1}.L^{-1}.y
